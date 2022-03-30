@@ -1,0 +1,186 @@
+#!/bin/bash
+
+# TODO: Redirect errors to stderr
+# TODO: Validate input date
+
+WIDTH="0"
+
+# Functions
+# 
+showHelp() {
+  echo
+  echo "Usage: $(basename $0) [-h] [FILTERS] [COMMAND] [LOG [LOG 2 [...]]"
+
+  echo
+  echo "FILTERS can be one of following:"
+  echo "  -a DATETIME - Shows records AFTER specified date in YYYY-MM-DD format"
+  echo "  -a DATETIME - Shows records BEFORE specified date in YYYY-MM-DD format"
+  echo "  -g GENDER - Shows records based on gender (Can be one of: M(male) or Z(female))"
+  echo "  -s [WIDTH] - Shows records as histograms for following commands: gender, age, daily, monthly, yearly, countries, districts, regions. Width can only be an unsigned integer"
+
+  exit 0
+}
+
+printErr() {
+  echo "$1" 1>&2
+  exit 0
+}
+
+isValidDate() {
+  if [[ $1 =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && date -d "$1" >/dev/null 2>&1;
+    then
+      return 0
+  fi
+  return 1
+}
+
+isValidGender() {
+  case $1 in
+    M|Z)
+      return 0 ;;
+    *)
+      return 1 ;;
+  esac
+}
+
+# Set default width when not specified
+setDefaultWidth() {
+  case $1 in 
+  gender)       WIDTH="100000"  ;;
+  age)          WIDTH="10000"   ;;
+  daily)        WIDTH="500"     ;;
+  monthly)      WIDTH="10000"   ;;
+  yearly)       WIDTH="100000"  ;;
+  countries)    WIDTH="100"     ;;
+  districts)    WIDTH="1000"    ;;
+  regions)      WIDTH="10000"   ;;
+  esac
+}
+
+# Variables
+OPTIND=1
+NUMBER_REGEX="^[0-9]+$"
+
+# Filter Variables
+AFTER_DATE=""
+BEFORE_DATE=""
+GENDER=""
+COMMAND="merge"
+
+# Handles filters and help command
+while getopts ":ha:b:g:s:" opt; do
+case "$opt" in
+  h) showHelp ;;
+  a) if isValidDate "$OPTARG"; 
+    then
+      AFTER_DATE=$OPTARG
+    else
+      printErr "Invalid after date"
+    fi ;;
+  b) if isValidDate "$OPTARG"; 
+    then
+      BEFORE_DATE=$OPTARG
+    else
+      printErr "Invalid before date"
+    fi ;;
+  g) if isValidGender "$OPTARG";
+    then
+      GENDER=$OPTARG
+    else
+      printErr "Invalid gender - can be one of: M|Z"
+    fi ;;
+  s)
+    # TODO: When random letters are added and shift is first opt, shift is wrong
+    if [[ $OPTARG =~ $NUMBER_REGEX ]] ;
+    then
+      WIDTH=$OPTARG
+    else
+      OPTIND=$((OPTIND-1))
+    fi
+    ;;
+  *) ;;
+esac
+done
+
+shift $((OPTIND - 1))
+
+case "$1" in
+  infected)   
+    COMMAND="infected" 
+    shift ;;
+  gender)    
+    COMMAND="gender"
+    shift ;;
+  age)
+    COMMAND="age"
+    shift ;;
+  daily)
+    COMMAND="daily"
+    shift ;;
+  monthly)
+    COMMAND="monthly"
+    shift ;;
+  yearly)
+    COMMAND="yearly"    
+    shift ;;
+  countries)  
+    COMMAND="countries" 
+    shift ;;
+  districts)  
+    COMMAND="districts"
+    shift ;;
+  regions)
+    COMMAND="regions"
+    shift ;;
+esac
+
+if [[ "$WIDTH" -eq "0" ]]; then
+  setDefaultWidth "$COMMAND"
+fi
+
+RECORDS=""
+# Read from files and concat them
+for file in "$@"
+do
+  if [[ -f $file ]]
+  then
+    RECORDS+="$(cat "$file" | sed 1d)"
+  fi
+done
+
+# If file was not passed, read from pipeline/stdin
+if [ -z "$RECORDS" ]; then
+  RECORDS="$(cat - | sed 1d )"
+fi
+
+# Replace spaces in records to newline
+RECORDS="$(echo "$RECORDS" | tr ' ' '\n')"
+
+# Filters
+# Gender filter 
+if ! [ -z "$GENDER" ]; then
+  RECORDS="$(echo "$RECORDS" | awk -F, '$4=="'$GENDER'"')"
+fi
+
+# After date filter
+if ! [ -z "$AFTER_DATE" ]; then
+  RECORDS="$(echo "$RECORDS" | awk -F, '$2 > "'$AFTER_DATE'"')"
+fi
+
+# Before date filter
+if ! [ -z "$BEFORE_DATE" ]; then
+  RECORDS="$(echo "$RECORDS" | awk -F, '$2 < "'$BEFORE_DATE'"')"
+fi
+
+echo "$RECORDS"
+
+# TODO: Commands
+
+# Commands
+# case $COMMAND in
+#   infected)
+#     echo "${#RECORDS[@]}"
+#     ;;
+# esac
+
+# printf '%s\n' "${FILES[@]}"
