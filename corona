@@ -144,7 +144,18 @@ for file in "$@"
 do
   if [[ -f $file ]]
   then
-    RECORDS+="$(cat "$file" | sed 1d)"
+    case $1 in
+      *\.csv)
+        RECORDS+="$(cat "$file" | sed 1d)"
+        ;;
+      *\.gz)
+        RECORDS+="$(gzip -d -c "$file" | sed 1d)"
+        ;;
+      *\.bz2)
+        RECORDS+="$(bzip2 -d -c "$file" | sed 1d)"
+    esac
+  else
+    printErr "$1 file does not exist"
   fi
 done
 
@@ -158,29 +169,99 @@ RECORDS="$(echo "$RECORDS" | tr ' ' '\n')"
 
 # Filters
 # Gender filter 
-if ! [ -z "$GENDER" ]; then
+if [ -n "$GENDER" ]; then
   RECORDS="$(echo "$RECORDS" | awk -F, '$4=="'$GENDER'"')"
 fi
 
 # After date filter
-if ! [ -z "$AFTER_DATE" ]; then
-  RECORDS="$(echo "$RECORDS" | awk -F, '$2 > "'$AFTER_DATE'"')"
+if [ -n "$AFTER_DATE" ]; then
+  RECORDS="$(echo "$RECORDS" | awk -F, '$2 >= "'$AFTER_DATE'"')"
 fi
 
 # Before date filter
-if ! [ -z "$BEFORE_DATE" ]; then
-  RECORDS="$(echo "$RECORDS" | awk -F, '$2 < "'$BEFORE_DATE'"')"
+if [ -n "$BEFORE_DATE" ]; then
+  RECORDS="$(echo "$RECORDS" | awk -F, '$2 <= "'$BEFORE_DATE'"')"
 fi
 
-echo "$RECORDS"
-
-# TODO: Commands
+# TODO: Compressed files - zip, gz, bz2, String validation in input?
 
 # Commands
-# case $COMMAND in
-#   infected)
-#     echo "${#RECORDS[@]}"
-#     ;;
-# esac
+case $COMMAND in
+  infected)
+    echo -n "$RECORDS" | grep -c '^'
+    ;;
+  merge)
+    echo "id,datum,vek,pohlavi,kraj_nuts_kod,okres_lau_kod,nakaza_v_zahranici,nakaza_zeme_csu_kod,reportovano_khs"
+    echo "$RECORDS"
+    ;;
+  gender)
+    MALE="$(echo "$RECORDS" | awk -F, '$4=="M"')"
+    FEMALE="$(echo "$RECORDS" | awk -F, '$4=="Z"')"
 
-# printf '%s\n' "${FILES[@]}"
+    echo "M: $(echo -n "$MALE" | grep -c '^')"
+    echo "Z: $(echo -n "$FEMALE" | grep -c '^')"
+    ;;
+  age)
+    echo "$RECORDS" | awk -F, 'BEGIN{for (i=0;i<13;i++){age[i]=0}}{
+      if ($3 == "") age[12]++
+      if ($3 >= 0 && $3 <= 5) age[0]++
+      if ($3 >= 6 && $3 <= 15) age[1]++
+      if ($3 >= 16 && $3 <= 25) age[2]++
+      if ($3 >= 26 && $3 <= 35) age[3]++
+      if ($3 >= 36 && $3 <= 45) age[4]++
+      if ($3 >= 46 && $3 <= 55) age[5]++
+      if ($3 >= 56 && $3 <= 65) age[6]++
+      if ($3 >= 66 && $3 <= 75) age[7]++
+      if ($3 >= 76 && $3 <= 85) age[8]++
+      if ($3 >= 86 && $3 <= 95) age[9]++
+      if ($3 >= 96 && $3 <= 105) age[10]++
+      if ($3 > 105) age[11]++
+    }
+    END{ 
+      print "0-5   : " age[0]
+      print "6-15  : " age[1] 
+      print "16-25 : " age[2]
+      print "26-35 : " age[3]
+      print "36-45 : " age[4]
+      print "46-55 : " age[5]
+      print "56-65 : " age[6]
+      print "66-75 : " age[7]
+      print "76-85 : " age[8]
+      print "86-95 : " age[9]
+      print "96-105: " age[10]
+      print ">105  : " age[11]
+      if (age[11] != 0) {
+        print "None  : " age[12]
+      }
+      }'
+    ;;
+  # TODO: add width
+  daily)
+    echo "$RECORDS" | awk -F, '{count[$2]++} END {for (day in count) print day": "count[day]}' | sort
+  ;;
+  monthly)
+    echo "$RECORDS" | awk -F, '{count[substr($2, 1, 7)]++} END {for (month in count) print month": "count[month]}' | sort
+  ;;
+  yearly)
+    echo "$RECORDS" | awk -F, '{count[substr($2, 1, 4)]++} END {for (year in count) print year": "count[year]}' | sort
+  ;;
+  countries)
+    echo "$RECORDS" | awk -F, '{if ($8 != "CZ" && $8 != "") count[$8]++} END {for (country in count) print country": "count[country]}' | sort
+  ;;
+  districts)
+    echo "$RECORDS" | awk -F, '{count[$6]++} END {for (district in count) 
+      if(district != "") {
+        print district": "count[district]
+      } else {
+        print "None: " count[district]
+      }}' | sort
+  ;;
+  regions)
+    echo "$RECORDS" | awk -F, '{count[$5]++} END {for (region in count) 
+      if(region != "") {
+        print region": "count[region]
+      } else {
+        print "None: " count[region]
+      }}' | sort
+  ;;
+esac
