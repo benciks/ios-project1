@@ -1,9 +1,6 @@
 #!/bin/bash
 
-# TODO: Redirect errors to stderr
-# TODO: Validate input date
-
-WIDTH="0"
+# TODO: Validate input date and finish help
 
 # Functions
 # 
@@ -57,6 +54,32 @@ setDefaultWidth() {
   esac
 }
 
+printGraph() {
+  echo "$1" | awk -F: -v WIDTH=$WIDTH -v SET_WIDTH=$SET_WIDTH '{VALUES[$1]=$2}
+    END{
+      MAX_VALUE=0
+
+      for(i in VALUES) {
+        if (VALUES[i] > MAX_VALUE) MAX_VALUE=VALUES[i]
+      }
+
+      for(i in VALUES) {
+        FINAL_LINE=""
+
+        if (SET_WIDTH != "") {
+          FINAL_LENGTH = VALUES[i]/int(WIDTH);
+        } else {
+          FINAL_LENGTH = (VALUES[i]*int(WIDTH))/MAX_VALUE; 
+        }
+
+        for (j=1; j <= FINAL_LENGTH; j++) {
+          FINAL_LINE = sprintf("%s%s", FINAL_LINE, "#")
+        }
+        print i ":", FINAL_LINE
+      }
+    }' | sort
+}
+
 # Variables
 OPTIND=1
 NUMBER_REGEX="^[0-9]+$"
@@ -66,6 +89,8 @@ AFTER_DATE=""
 BEFORE_DATE=""
 GENDER=""
 COMMAND="merge"
+WIDTH="0"
+SET_WIDTH=""
 
 # Handles filters and help command
 while getopts ":ha:b:g:s:" opt; do
@@ -95,6 +120,7 @@ case "$opt" in
     then
       WIDTH=$OPTARG
     else
+      SET_WIDTH="1"
       OPTIND=$((OPTIND-1))
     fi
     ;;
@@ -134,7 +160,7 @@ case "$1" in
     shift ;;
 esac
 
-if [[ "$WIDTH" -eq "0" ]]; then
+if ! [[ "$SET_WIDTH" -eq "" ]]; then
   setDefaultWidth "$COMMAND"
 fi
 
@@ -147,12 +173,16 @@ do
     case $1 in
       *\.csv)
         RECORDS+="$(cat "$file" | sed 1d)"
+        shift
         ;;
       *\.gz)
         RECORDS+="$(gzip -d -c "$file" | sed 1d)"
+        shift
         ;;
       *\.bz2)
         RECORDS+="$(bzip2 -d -c "$file" | sed 1d)"
+        shift
+        ;;
     esac
   else
     printErr "$1 file does not exist"
@@ -195,14 +225,16 @@ case $COMMAND in
     echo "$RECORDS"
     ;;
   gender)
-    MALE="$(echo "$RECORDS" | awk -F, '$4=="M"')"
-    FEMALE="$(echo "$RECORDS" | awk -F, '$4=="Z"')"
+    OUTPUT=$(echo "$RECORDS" | awk -F, '{count[$4]++} END {for (gender in count) print gender": "count[gender]}')
 
-    echo "M: $(echo -n "$MALE" | grep -c '^')"
-    echo "Z: $(echo -n "$FEMALE" | grep -c '^')"
+    if [[ $WIDTH -eq 0 ]]; then
+      echo "$OUTPUT"
+    else
+      printGraph "$OUTPUT"
+    fi
     ;;
   age)
-    echo "$RECORDS" | awk -F, 'BEGIN{for (i=0;i<13;i++){age[i]=0}}{
+    OUTPUT=$(echo "$RECORDS" | awk -F, 'BEGIN{for (i=0;i<13;i++){age[i]=0}}{
       if ($3 == "") age[12]++
       if ($3 >= 0 && $3 <= 5) age[0]++
       if ($3 >= 6 && $3 <= 15) age[1]++
@@ -233,35 +265,77 @@ case $COMMAND in
       if (age[11] != 0) {
         print "None  : " age[12]
       }
-      }'
+      }')
+
+    if [[ $WIDTH -eq 0 ]]; then
+      echo "$OUTPUT"
+    else
+      printGraph "$OUTPUT"
+    fi
     ;;
   # TODO: add width
   daily)
-    echo "$RECORDS" | awk -F, '{count[$2]++} END {for (day in count) print day": "count[day]}' | sort
+    OUTPUT=$(echo "$RECORDS" | awk -F, '{count[$2]++} END {for (day in count) print day": "count[day]}' | sort)
+    
+    if [[ $WIDTH -eq 0 ]]; then
+      echo "$OUTPUT"
+    else
+      printGraph "$OUTPUT"
+    fi
   ;;
   monthly)
-    echo "$RECORDS" | awk -F, '{count[substr($2, 1, 7)]++} END {for (month in count) print month": "count[month]}' | sort
+    OUTPUT=$(echo "$RECORDS" | awk -F, '{count[substr($2, 1, 7)]++} END {for (month in count) print month": "count[month]}' | sort)
+    
+    if [[ $WIDTH -eq 0 ]]; then
+      echo "$OUTPUT"
+    else
+      printGraph "$OUTPUT"
+    fi
   ;;
   yearly)
-    echo "$RECORDS" | awk -F, '{count[substr($2, 1, 4)]++} END {for (year in count) print year": "count[year]}' | sort
+    OUTPUT=$(echo "$RECORDS" | awk -F, '{count[substr($2, 1, 4)]++} END {for (year in count) print year": "count[year]}' | sort)
+    
+    if [[ $WIDTH -eq 0 ]]; then
+      echo "$OUTPUT"
+    else
+      printGraph "$OUTPUT"
+    fi
   ;;
   countries)
-    echo "$RECORDS" | awk -F, '{if ($8 != "CZ" && $8 != "") count[$8]++} END {for (country in count) print country": "count[country]}' | sort
+    OUTPUT=$(echo "$RECORDS" | awk -F, '{if ($8 != "CZ" && $8 != "") count[$8]++} END {for (country in count) print country": "count[country]}' | sort)
+    
+    if [[ $WIDTH -eq 0 ]]; then
+      echo "$OUTPUT"
+    else
+      printGraph "$OUTPUT"
+    fi
   ;;
   districts)
-    echo "$RECORDS" | awk -F, '{count[$6]++} END {for (district in count) 
+    OUTPUT=$(echo "$RECORDS" | awk -F, '{count[$6]++} END {for (district in count) 
       if(district != "") {
         print district": "count[district]
       } else {
         print "None: " count[district]
-      }}' | sort
+      }}' | sort)
+    
+    if [[ $WIDTH -eq 0 ]]; then
+      echo "$OUTPUT"
+    else
+      printGraph "$OUTPUT"
+    fi
   ;;
   regions)
-    echo "$RECORDS" | awk -F, '{count[$5]++} END {for (region in count) 
+    OUTPUT=$(echo "$RECORDS" | awk -F, '{count[$5]++} END {for (region in count) 
       if(region != "") {
         print region": "count[region]
       } else {
         print "None: " count[region]
-      }}' | sort
+      }}' | sort)
+    
+    if [[ $WIDTH -eq 0 ]]; then
+      echo "$OUTPUT"
+    else
+      printGraph "$OUTPUT"
+    fi
   ;;
 esac
