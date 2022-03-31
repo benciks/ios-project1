@@ -100,6 +100,7 @@ case "$opt" in
     then
       AFTER_DATE=$OPTARG
     else
+      echo "$OPTARG"
       printErr "Invalid after date"
     fi ;;
   b) if isValidDate "$OPTARG"; 
@@ -193,7 +194,7 @@ done
 
 # If file was not passed, read from pipeline/stdin
 if [ -z "$RECORDS" ]; then
-  RECORDS="$(cat - | sed 1d )"
+  RECORDS="$(cat - | sed 1d )"$'\n'
 fi
 
 # Replace spaces in records to newline
@@ -214,8 +215,6 @@ fi
 if [ -n "$BEFORE_DATE" ]; then
   RECORDS="$(echo "$RECORDS" | awk -F, '$2 <= "'$BEFORE_DATE'"')"
 fi
-
-# TODO: Compressed files - zip, gz, bz2, String validation in input?
 
 # Commands
 case $COMMAND in
