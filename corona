@@ -158,6 +158,8 @@ case "$1" in
   regions)
     COMMAND="regions"
     shift ;;
+  merge)
+    shift ;;
 esac
 
 if ! [[ "$SET_WIDTH" -eq "" ]]; then
@@ -172,7 +174,7 @@ do
   then
     case $1 in
       *\.csv)
-        RECORDS+="$(cat "$file" | sed 1d)"
+        RECORDS+="$(cat "$file" | sed 1d)"$'\n'
         shift
         ;;
       *\.gz)
