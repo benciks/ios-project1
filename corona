@@ -262,7 +262,9 @@ case $COMMAND in
     ;;
   merge)
     echo "id,datum,vek,pohlavi,kraj_nuts_kod,okres_lau_kod,nakaza_v_zahranici,nakaza_zeme_csu_kod,reportovano_khs"
-    echo "$RECORDS"
+    if [ -n "$RECORDS" ]; then
+      echo "$RECORDS"
+    fi
     ;;
   gender)
     OUTPUT=$(echo "$RECORDS" | awk -F, '{count[$4]++} END {for (gender in count) print gender": "count[gender]}')
