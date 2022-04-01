@@ -1,12 +1,18 @@
 #!/bin/bash
 
-# export POSIXLY_CORRECT=yes
+#################################################################
+# author: Simon Bencik
+# login: xbenci01
+# project: ios-project1
+# description: Script to filter CSV and shows stats for infected.
+##################################################################
+
+export POSIXLY_CORRECT=yes
 
 # Functions
 showHelp() {
-  echo
   echo "Usage: $(basename $0) [-h] [FILTERS] [COMMAND] [LOG [LOG 2 [...]]"
-
+  echo
   echo "COMMAND can be on of following:"
   echo "  infected - Shows number of infected"
   echo "  merge - Merges multiple files - default command"
@@ -15,12 +21,17 @@ showHelp() {
   echo "  daily - Shows stats based on days"
   echo "  monthly - Shows stats based on months"
   echo "  yearly - Shows stats based on years"
+  echo "  countries - Shows stats based on countries - (without CZ code)"
+  echo "  districts - Shows stats based on districts"
+  echo "  regions - Shows stats based on region"
   echo
   echo "FILTERS can be one of following:"
   echo "  -a DATETIME - Shows records AFTER specified date in YYYY-MM-DD format"
   echo "  -a DATETIME - Shows records BEFORE specified date in YYYY-MM-DD format"
   echo "  -g GENDER - Shows records based on gender (Can be one of: M(male) or Z(female))"
   echo "  -s [WIDTH] - Shows records as histograms for following commands: gender, age, daily, monthly, yearly, countries, districts, regions. Width can only be an unsigned integer"
+  echo
+  echo "-h - shows help"
 
   exit 0
 }
@@ -205,11 +216,11 @@ do
         shift
         ;;
       *\.gz)
-        RECORDS+="$(gzip -d -c "$file" | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordAged)"
+        RECORDS+="$(gzip -d -c "$file" | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordDate | isValidRecordAged)"
         shift
         ;;
       *\.bz2)
-        RECORDS+="$(bzip2 -d -c "$file" | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordAge)"
+        RECORDS+="$(bzip2 -d -c "$file" | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordDate | isValidRecordAge)"
         shift
         ;;
     esac
@@ -220,7 +231,7 @@ done
 
 # If file was not passed, read from pipeline/stdin
 if [ -z "$RECORDS" ]; then
-  RECORDS="$(cat - | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordAge)"$'\n'
+  RECORDS="$(cat - | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordDate | isValidRecordAge)"$'\n'
 fi
 
 # Replace spaces in records to newline
