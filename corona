@@ -68,7 +68,7 @@ isValidRecordDate() {
 
 isValidRecordAge() {
   awk -F, '{
-    if ($3 !~ /[[:blank:]]*[0-9]*[:blank:]*$/ || $3 ~ /.*\..*/) {
+    if ($3 !~ /[[:blank:]]*[0-9]*[[:blank:]]*$/ || $3 ~ /.*\..*/) {
       printf  "Invalid age: %s\n", $0 > "/dev/stderr"
     } else {
      print $0
