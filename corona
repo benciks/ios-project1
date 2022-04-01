@@ -11,7 +11,7 @@ export POSIXLY_CORRECT=yes
 
 # Functions
 showHelp() {
-  echo "Usage: $(basename $0) [-h] [FILTERS] [COMMAND] [LOG [LOG 2 [...]]"
+  echo "Usage: $(basename "$0") [-h] [FILTERS] [COMMAND] [LOG [LOG 2 [...]]"
   echo
   echo "COMMAND can be on of following:"
   echo "  infected - Shows number of infected"
@@ -59,10 +59,12 @@ isValidGender() {
 }
 
 isValidRecordDate() {
-  awk -F, '{if ($2 !~ /^[0-9]{4}-(((01|03|05|07|08|10|12)-(0[1-9]|[1-2][0-9]|3[0-1]))|((04|06|09|11)-(0[1-9]|[1-2][0-9]|30))|((02)-(0[1-9]|[1-2][0-9])))$/)
-    printf  "Invalid date: %s\n", $0 > "/dev/stderr"
-  else 
-    print $0
+  awk -F, '{
+    if ($2 !~ /^[0-9]{4}-(((01|03|05|07|08|10|12)-(0[1-9]|[1-2][0-9]|3[0-1]))|((04|06|09|11)-(0[1-9]|[1-2][0-9]|30))|((02)-(0[1-9]|[1-2][0-9])))$/) {
+      printf  "Invalid date: %s\n", $0 > "/dev/stderr"
+    } else {
+      print $0
+    }
   }'
 }
 
@@ -216,7 +218,7 @@ do
         shift
         ;;
       *\.gz)
-        RECORDS+="$(gzip -d -c "$file" | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordDate | isValidRecordAged)"
+        RECORDS+="$(gzip -d -c "$file" | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordDate | isValidRecordAge)"
         shift
         ;;
       *\.bz2)
