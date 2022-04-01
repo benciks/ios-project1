@@ -125,6 +125,7 @@ case "$opt" in
     then
       AFTER_DATE=$OPTARG
     else
+      echo "$OPTARG"
       printErr "Invalid after date"
     fi ;;
   b) if isValidDate "$OPTARG"; 
@@ -219,7 +220,7 @@ done
 
 # If file was not passed, read from pipeline/stdin
 if [ -z "$RECORDS" ]; then
-  RECORDS="$(cat - | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordAge)"
+  RECORDS="$(cat - | sed 1d | sed '/^[[:space:]]*$/d' | tr -d '[[:blank:]]' | isValidRecordAge)"$'\n'
 fi
 
 # Replace spaces in records to newline

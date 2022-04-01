@@ -1,5 +1,9 @@
 *.csv
 *.gz
 *.bz2
+<<<<<<< HEAD
 *.py
 *.txt
+=======
+ios-22-1-inputs/
+>>>>>>> refs/remotes/origin/main
